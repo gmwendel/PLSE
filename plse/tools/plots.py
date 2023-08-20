@@ -19,13 +19,14 @@ def make_plots(input_files, input_network, output_plots, interactive=False):
     logging.info("Loading Network "+input_network)
     plse_counter = tf.keras.models.load_model(input_network)
 
+    logging.info("Generating predictions...")
     output = plse_counter(waveforms).numpy()
     con_mat = tf.math.confusion_matrix(labels=encoded_npe.argmax(axis=1),
                                        predictions=output.argmax(axis=1)).numpy()
     print("Confusion Matrix:")
     print(con_mat)
 
-    #assume largest number in dataset is the cutoff
+    #assume largest number of p.e. predicted is an overflow bin
     maxpe=output.shape[1]
     labels = [str(i) if i < maxpe-1 else "> "+str(maxpe-2) for i in range(maxpe)]
 

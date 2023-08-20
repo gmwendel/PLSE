@@ -3,6 +3,8 @@ from keras import layers, models
 
 
 class WaveformTransform(tf.keras.layers.Layer):
+    '''A custom layer to normalize the waveforms before each network evaluation so we don't have to do it manually
+    before each time we train or evaluate the network'''
     def __init__(self, norm_mean=1800, norm_std=40):
         super().__init__()
         self.norm_mean = norm_mean
