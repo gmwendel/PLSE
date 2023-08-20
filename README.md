@@ -48,7 +48,7 @@ Note: a simple training example is included in test.py and can be run by uncomme
 Test PLSE network evaluation by running a pre-trained example network and generating a confusion matrix:
 
 ```
-python3 example/test.py
+python3 plse/example/test.py
 ```
 
 ## Data Extraction
