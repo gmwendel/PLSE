@@ -21,9 +21,9 @@ conda activate plse
 
 Install tensorflow using the following [instructions](https://www.tensorflow.org/install/pip).
 
-Once an anaconda environment with tensorflow is properly configured, install PECounter:
+Once an anaconda environment with tensorflow is properly configured, install PLSE:
 ```
-git clone https://github.com/gmwendel/PEcounter.git
+git clone https://github.com/gmwendel/PLSE.git
 cd PLSE
 pip install -e .
 ```
