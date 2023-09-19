@@ -84,4 +84,4 @@ if __name__ == '__main__':
                         required=True)
     args = parser.parse_args()
 
-    make_plots(args.input_files, args.network_output, args.output_plots)
+    make_plots(args.input_files, args.input_network, args.output_plots)
