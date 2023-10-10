@@ -56,6 +56,22 @@ class DataLoader:
         waveforms = np.concatenate(waveforms_list)
         return waveforms
 
+    def load_event_data(self):
+        """
+        Load the event data from multiple file sources.
+
+        Returns:
+            np.ndarray: The 1D event data.
+        """
+        event_data_list = []
+
+        for file in self.input_files:
+            with np.load(file) as data:
+                event_data_list.append(data['eventid'])
+
+        evt_data = np.concatenate(event_data_list)
+        return evt_data
+
     def load_npe(self):
         """
         Load the npe data from multiple file sources.
