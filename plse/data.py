@@ -121,7 +121,7 @@ class DataLoader:
 
 
 class DataGenerator(Sequence):
-    def __init__(self, x, y, batch_size=10000, shuffle=True):
+    def __init__(self, x, y, batch_size=2**13, shuffle=True):
         self.x = x
         self.y = y
         self.batch_size = batch_size
