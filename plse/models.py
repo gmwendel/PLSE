@@ -16,7 +16,7 @@ class WaveformTransform(tf.keras.layers.Layer):
 
 
 class PLSECounter(tf.keras.Model):
-    def __init__(self, waveform_shape, encoded_npe_shape, norm_mean=1800, norm_std=40):
+    def __init__(self, waveform_shape, encoded_npe_shape, norm_mean=0, norm_std=40):
         super(PLSECounter, self).__init__()
         self.waveform_length = waveform_shape[1]
         self.onehot_npe_length = encoded_npe_shape[1]
@@ -46,7 +46,7 @@ class PLSECounter(tf.keras.Model):
         self.model = models.Model(input_layer, output_layer)
         self.model.summary()
 
-    def compile_model(self, optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss='categorical_crossentropy',
+    def compile_model(self, optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), loss='categorical_crossentropy',
                       metrics="categorical_accuracy"):
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
