@@ -1,155 +1,127 @@
 import numpy as np
+import ROOT
 import rat
-import ROOT as ROOT
+import argparse
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-###USED TO CONVERT RAT ROOT FILES TO NPZ FILES FOR TRAINING OR EVALUATION###
-
-def main():
-    args = get_args()
+def main(input_files, output_file):
+    """Main function to process input files and save the data to a compressed NPZ file."""
     total_waveforms, total_nphotons, total_hittimes, total_event_id = [], [], [], []
-    for file in args.input_files:
 
+    for file in input_files:
         waveforms, hittimes, nphotons, event_id = process_file(file)
-        print("Processed file: " + file)
-        total_waveforms += [waveforms]
-        total_nphotons += [nphotons]
-        total_hittimes += [hittimes]
-        total_event_id += [event_id]
+        logging.info(f"Processed file: {file}")
+        total_waveforms.append(waveforms)
+        total_nphotons.append(nphotons)
+        total_hittimes.append(hittimes)
+        total_event_id.append(event_id)
 
     all_waveforms = np.vstack(total_waveforms)
     all_nphotons = np.hstack(total_nphotons)
     all_hittimes = np.vstack(total_hittimes)
     all_event_id = np.vstack(total_event_id)
 
-    np.savez_compressed(args.output_file, waveforms=all_waveforms, nphotons=all_nphotons, hittimes=all_hittimes, eventid=all_event_id)
-    print("Saved ", len(all_waveforms), "to: " + args.output_file)
-
+    np.savez_compressed(output_file, waveforms=all_waveforms, nphotons=all_nphotons, hittimes=all_hittimes, eventid=all_event_id)
+    logging.info(f"Saved {len(all_waveforms)} waveforms to: {output_file}")
 
 def get_args():
-    import argparse
-    # Get command line inputs
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input_files',
-                        help='Type = String; Location of rat files to be converted, e.g. $PWD/waveforms{1..10}.root',
-                        nargs="+",
-                        required=True
-                        )
-    parser.add_argument('-o', '--output_file',
-                        help='Type = String;  Specify npz output file with waveform information; e.g. $PWD/waveforms.npz',
-                        nargs=None,
-                        required=True
-                        )
-
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Convert RAT ROOT files to NPZ files for training or evaluation.")
+    parser.add_argument('-i', '--input_files', help='Input RAT files to be converted', nargs='+', required=True)
+    parser.add_argument('-o', '--output_file', help='Output NPZ file with waveform information', required=True)
     return parser.parse_args()
 
-
 def fast_dsreader(filename):
+    """Generator to read RAT DS events from a file."""
     r = ROOT.RAT.DSReader(filename)
     ds = r.NextEvent()
     while ds:
         yield ROOT.RAT.DS.Root(ds)
         ds = r.NextEvent()
 
-
 def process_file(input_filename):
-    ## Input file
+    """Process a single RAT ROOT file and return waveform, hit times, photon counts, and event IDs."""
     dsreader = fast_dsreader(input_filename)
-
-    allHitTimes, allFrontTimes, allNoiseFlags = [], [], []
-
     all_waveforms = []
     good_events = []
-    ##  Loop over all triggered events
+
     for i, event in enumerate(dsreader):
         try:
-            ## Read in the event and get the digitizer information
-            ev = event.GetEV(0)
-            digitizer = ev.GetDigitizer()
-
-            ## Get the digitizer dynamic range and the number of bits
-            dynamic_range = digitizer.GetDynamicRange()  ## in mV
-            nbits = digitizer.GetNBits()
-            voltage_res = dynamic_range / (1 << nbits);
-
-            ## Digitizer sampling rate and number of samples
-            sampling_rate = digitizer.GetSamplingRate()
-            time_step = 1.0 / sampling_rate
-            nsamples = digitizer.GetNSamples()
-
-            # print("Time Step: ",time_step)
-
-            ## Loop over the hit PMTs
-            for iPMT in range(ev.GetPMTCount()):
-
-                ## Get the waveform for each PMT
-                pmt = ev.GetPMT(iPMT)
-                pmtID = pmt.GetID()
-                waveform = digitizer.GetWaveform(pmtID);
-                hwaveform = []
-
-                for sample in range(waveform.size()):
-                    time = sample * time_step
-                    ## The waveform contains the ADC counts for each sample
-                    adc = int(waveform[sample])
-                    ## Convert to voltage
-                    voltage = adc * voltage_res - 1800
-                    hwaveform.append(voltage)
-
-                ## Save the waveform to list
-                all_waveforms.append(hwaveform)
+            ev, digitizer, sampling_rate, time_step = get_digitizer_info(event)
+            process_event_waveforms(ev, digitizer, sampling_rate, time_step, all_waveforms)
             good_events.append(i)
-
-        except:
-            print("Error on event: ", i)
+        except Exception as e:
+            logging.error(f"Error on event {i}: {e}")
             continue
 
-    ## Now get truth info
+    all_hit_times, all_nphotons, all_evt_info = get_truth_info(input_filename, good_events)
+
+    return (
+        np.array(all_waveforms, dtype=np.float32),
+        np.array(all_hit_times, dtype=np.float32),
+        np.array(all_nphotons, dtype=np.int16),
+        np.array(all_evt_info, dtype=np.int32)
+    )
+
+def get_digitizer_info(event):
+    """Extract digitizer information from an event."""
+    ev = event.GetEV(0)
+    digitizer = ev.GetDigitizer()
+    dynamic_range = digitizer.GetDynamicRange()
+    nbits = digitizer.GetNBits()
+    sampling_rate = digitizer.GetSamplingRate()
+    time_step = 1.0 / sampling_rate
+    return ev, digitizer, sampling_rate, time_step
+
+def process_event_waveforms(ev, digitizer, sampling_rate, time_step, all_waveforms):
+    """Process waveforms for a single event."""
+    for iPMT in range(ev.GetPMTCount()):
+        pmt = ev.GetPMT(iPMT)
+        pmtID = pmt.GetID()
+        waveform = digitizer.GetWaveform(pmtID)
+
+        # Vectorize the waveform calculation
+        waveform_array = np.array(waveform, dtype=np.int32)
+        dynamic_range = digitizer.GetDynamicRange()
+        nbits = digitizer.GetNBits()
+        voltage_res = dynamic_range / (1 << nbits)
+        hwaveform = waveform_array * voltage_res - 1800
+
+        all_waveforms.append(hwaveform)
+
+def get_truth_info(input_filename, good_events):
+    """Extract truth information for events."""
     f = ROOT.TFile(input_filename, 'read')
-
     T = f.Get('T')
-    nevents = T.GetEntries()
-
     ds = rat.RAT.DS.Root()
     T.SetBranchAddress('ds', ROOT.AddressOf(ds))
-    mc = ds.GetMC()
 
-    ## Get true hit times for all events
-    allHitTimes = []
-    allNPhotons = []
-    allevtinfo = []
+    all_hit_times, all_nphotons, allevtinfo = [], [], []
     for i_event in good_events:
         T.GetEvent(i_event)
         ev = ds.GetEV(0)
         mc = ds.GetMC()
         nhitpmts = ev.GetPMTCount()
-        for i_pmt in range(nhitpmts):
-            # Pre-allocate the array with -999 for padding
-            photon_times_on_this_pmt = np.zeros(100, dtype=np.float32)-999
 
+        for i_pmt in range(nhitpmts):
+            photon_times_on_this_pmt = np.full(100, -999, dtype=np.float32)
             nphotons = mc.GetMCPMT(i_pmt).GetMCPhotonCount()
-            allNPhotons.append(nphotons)
+            all_nphotons.append(nphotons)
             allevtinfo.append([i_event, i_pmt])
 
-            # Fill in the actual hit times
             for i_MCPhoton in range(min(nphotons, 100)):
                 MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
-                HitTime = MCPhoton.GetFrontEndTime()
-                photon_times_on_this_pmt[i_MCPhoton] = HitTime
+                photon_times_on_this_pmt[i_MCPhoton] = MCPhoton.GetFrontEndTime()
 
-            allHitTimes.append(photon_times_on_this_pmt)
+            all_hit_times.append(photon_times_on_this_pmt)
 
         if i_event % 500 == 0:
-            print('processed event: ', i_event)
+            logging.info(f'Processed event: {i_event}')
 
-    all_waveforms = np.array(all_waveforms, dtype=np.float32)
-    #print(allHitTimes)
-    allHitTimes = np.array(allHitTimes, dtype=np.float32)
-    allNPhotons = np.array(allNPhotons, dtype=np.int16)
-    allevtinfo = np.array(allevtinfo, dtype=np.int32)
-
-    return all_waveforms, allHitTimes, allNPhotons, allevtinfo
-
+    return all_hit_times, all_nphotons, allevtinfo
 
 if __name__ == "__main__":
-    main()
+    args = get_args()
+    main(args.input_files, args.output_file)
