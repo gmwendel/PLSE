@@ -111,9 +111,19 @@ def get_truth_info(input_filename, good_events):
             all_nphotons.append(nphotons)
             allevtinfo.append([i_event, i_pmt])
 
-            for i_MCPhoton in range(min(nphotons, 100)):
-                MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
-                photon_times_on_this_pmt[i_MCPhoton] = MCPhoton.GetFrontEndTime()
+            # Extract non-padding values and sort them
+            photon_times = []
+            for i_MCPhoton in range(nphotons):
+                if i_MCPhoton < 100:
+                    MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
+                    time = MCPhoton.GetFrontEndTime()
+                    photon_times.append(time)
+
+            # Sort the non-padding values
+            sorted_times = sorted(photon_times)
+
+            # Fill the sorted values back into the array, followed by padding
+            photon_times_on_this_pmt[:len(sorted_times)] = sorted_times
 
             all_hit_times.append(photon_times_on_this_pmt)
 
