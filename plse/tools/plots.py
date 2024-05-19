@@ -70,6 +70,25 @@ def make_plots(input_files, input_network, output_plots, interactive=False):
         plt.show()
     plt.close()
 
+def plot_single(input_files, input_network, output_plots, event,interactive=False):
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    logging.info("Loading data...")
+    dataloader = DataLoader(input_files)
+    waveforms = dataloader.load_waveforms()
+    waveforms=np.array([waveforms[event]])
+    print(waveforms.shape)
+    encoded_npe = dataloader.load_encoded_npe()[event]
+
+    logging.info("Loading Network "+input_network)
+    plse_counter = tf.keras.models.load_model(input_network)
+
+    logging.info("Generating predictions...")
+    output = plse_counter(waveforms).numpy()
+    print(output)
+    print(encoded_npe)
+    print(waveforms)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
