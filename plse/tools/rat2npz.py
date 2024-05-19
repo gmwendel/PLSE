@@ -124,15 +124,15 @@ def process_file(input_filename):
         mc = ds.GetMC()
         nhitpmts = ev.GetPMTCount()
         for i_pmt in range(nhitpmts):
-            # Pre-allocate the array with zeros
-            photon_times_on_this_pmt = np.zeros(250, dtype=np.float32)
+            # Pre-allocate the array with -999 for padding
+            photon_times_on_this_pmt = np.zeros(100, dtype=np.float32)-999
 
             nphotons = mc.GetMCPMT(i_pmt).GetMCPhotonCount()
             allNPhotons.append(nphotons)
             allevtinfo.append([i_event, i_pmt])
 
             # Fill in the actual hit times
-            for i_MCPhoton in range(min(nphotons, 250)):
+            for i_MCPhoton in range(min(nphotons, 100)):
                 MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
                 HitTime = MCPhoton.GetFrontEndTime()
                 photon_times_on_this_pmt[i_MCPhoton] = HitTime
