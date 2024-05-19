@@ -16,8 +16,8 @@ def train_counter(input_files, network_output, save_history=False, use_multiproc
 
     # Take 1/10 total data and make it validation
     splits = int(len(waveforms) / 10)
-    train_dataset = DataGenerator(waveforms[:-splits], encoded_npes[:-splits])
-    validation_dataset = DataGenerator(waveforms[-splits:], encoded_npes[-splits:])
+    train_dataset = DataGenerator(waveforms[:-splits], encoded_npes[:-splits], -20, 30 + 1)
+    validation_dataset = DataGenerator(waveforms[-splits:], encoded_npes[-splits:], -20, 30 + 1)
 
     logging.info("Building and compiling the model...")
 
