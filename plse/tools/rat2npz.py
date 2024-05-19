@@ -9,16 +9,13 @@ def main():
     args = get_args()
     total_waveforms, total_nphotons, total_hittimes, total_event_id = [], [], [], []
     for file in args.input_files:
-        try:
-            waveforms, hittimes, nphotons, event_id = process_file(file)
-            print("Processed file: " + file)
-            total_waveforms += [waveforms]
-            total_nphotons += [nphotons]
-            total_hittimes += [hittimes]
-            total_event_id += [event_id]
-        except:
-            print("Failed to process file: " + file)
-            continue
+
+        waveforms, hittimes, nphotons, event_id = process_file(file)
+        print("Processed file: " + file)
+        total_waveforms += [waveforms]
+        total_nphotons += [nphotons]
+        total_hittimes += [hittimes]
+        total_event_id += [event_id]
 
     all_waveforms = np.vstack(total_waveforms)
     all_nphotons = np.hstack(total_nphotons)
@@ -96,7 +93,7 @@ def process_file(input_filename):
                     ## The waveform contains the ADC counts for each sample
                     adc = int(waveform[sample])
                     ## Convert to voltage
-                    voltage = adc * voltage_res
+                    voltage = adc * voltage_res - 1800
                     hwaveform.append(voltage)
 
                 ## Save the waveform to list
@@ -127,25 +124,31 @@ def process_file(input_filename):
         mc = ds.GetMC()
         nhitpmts = ev.GetPMTCount()
         for i_pmt in range(nhitpmts):
-            photon_times_on_this_pmt = []
+            # Pre-allocate the array with zeros
+            photon_times_on_this_pmt = np.zeros(250, dtype=np.float32)
+
             nphotons = mc.GetMCPMT(i_pmt).GetMCPhotonCount()
             allNPhotons.append(nphotons)
             allevtinfo.append([i_event, i_pmt])
-            for i_MCPhoton in range(nphotons):
+
+            # Fill in the actual hit times
+            for i_MCPhoton in range(min(nphotons, 250)):
                 MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
-                HitTime = MCPhoton.GetHitTime()
-                photon_times_on_this_pmt.append(HitTime)
-            # Make them all the same length so we can save as np array
-            while i_MCPhoton < 250:
-                photon_times_on_this_pmt.append(0)
-                i_MCPhoton += 1
+                HitTime = MCPhoton.GetFrontEndTime()
+                photon_times_on_this_pmt[i_MCPhoton] = HitTime
+
             allHitTimes.append(photon_times_on_this_pmt)
+
         if i_event % 500 == 0:
             print('processed event: ', i_event)
 
-    return np.array(all_waveforms, dtype=np.float32), np.array(allHitTimes, dtype=np.float32), np.array(allNPhotons,
-                                                                                                        dtype=np.int16), np.array(
-        allevtinfo, dtype=np.int32)
+    all_waveforms = np.array(all_waveforms, dtype=np.float32)
+    #print(allHitTimes)
+    allHitTimes = np.array(allHitTimes, dtype=np.float32)
+    allNPhotons = np.array(allNPhotons, dtype=np.int16)
+    allevtinfo = np.array(allevtinfo, dtype=np.int32)
+
+    return all_waveforms, allHitTimes, allNPhotons, allevtinfo
 
 
 if __name__ == "__main__":
