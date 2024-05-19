@@ -88,6 +88,22 @@ class DataLoader:
         nphotons = np.concatenate(nphotons_list)
         return nphotons
 
+    def load_times(self):
+        """
+        Load the hit time data from multiple file sources.
+
+        Returns:
+            np.ndarray: The 2D time data.
+        """
+        times_list = []
+
+        for file in self.input_files:
+            with np.load(file) as data:
+                times_list.append(data['hittimes'])
+
+        times = np.concatenate(times_list)
+        return times
+
     def load_encoded_npe(self):
         """
         Load and preprocess the encoded_npe data.
@@ -121,9 +137,11 @@ class DataLoader:
 
 
 class DataGenerator(Sequence):
-    def __init__(self, x, y, batch_size=2**13, shuffle=True):
+    def __init__(self, x, y, n_min, n_max, batch_size=2**13, shuffle=True):
         self.x = x
         self.y = y
+        self.n_min = n_min
+        self.n_max = n_max
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.indexes = np.arange(len(self.x))
@@ -136,8 +154,23 @@ class DataGenerator(Sequence):
         indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
         batch_x = self.x[indexes]
         batch_y = self.y[indexes]
+
+        # Apply data augmentation
+        batch_x = self._augment_data(batch_x)
+
         return batch_x, batch_y
 
     def on_epoch_end(self):
         if self.shuffle:
             np.random.shuffle(self.indexes)
+
+    def _augment_data(self, batch_x):
+        batch_size, seq_length = batch_x.shape
+        # Generate random shifts
+        shifts = np.random.randint(self.n_min, self.n_max + 1, batch_size)
+        # Create an array with indices
+        indices = np.mod(np.arange(seq_length) - shifts[:, None], seq_length)
+        # Apply shifts
+        augmented_batch_x = batch_x[np.arange(batch_size)[:, None], indices]
+        return augmented_batch_x
+
