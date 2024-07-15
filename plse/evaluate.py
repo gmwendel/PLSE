@@ -12,7 +12,6 @@ def evaluate_from_saved_model(
         input_files,
         input_model="model.keras",
         # Save settings
-        output_dir="./",
         output_file="output.npy",
         overwrite=False,
     ):
@@ -32,7 +31,8 @@ def evaluate_from_saved_model(
 
     # Verify the output directory and file before evaluating
     logging.info("Verifying the output location and file...")
-    output_dir, output_file = verify_output(output_dir=output_dir, filename=output_file, overwrite=overwrite)
+    output_dir, filename = os.path.split(output_file)
+    _, output_file = verify_output(output_dir=output_dir, filename=filename, overwrite=overwrite)
 
     # Evaluate
     output = loaded_model(waveforms).numpy()
@@ -47,9 +47,7 @@ def main():
     parser.add_argument('input_files', nargs='+', help='Input files containing the waveforms to be evaluated.')
     parser.add_argument('-m', '--input-model', help='Input model to use for evaluation.',
                         default='model.keras')
-    parser.add_argument('-od', '--output-dir', help='Path to the directory to save the evaluated values.',
-                        default='./')
-    parser.add_argument('-of', '--output-file', help='File name to save the evaluated output.',
+    parser.add_argument('-o', '--output-file', help='File to save the evaluated output.',
                         default='output.npy')
     parser.add_argument('-f', '--force-overwrite', action='store_true', help='Force an overwrite of the output.')
     args = parser.parse_args()
@@ -59,7 +57,6 @@ def main():
         input_files = args.input_files,
         input_model = args.input_model,
         # Save settings
-        output_dir = args.output_dir,
         output_file = args.output_file,
         overwrite = args.force_overwrite,
     )
