@@ -3,6 +3,7 @@ import tensorflow as tf
 import keras
 from keras import layers, models
 
+from plse.utils import verify_output
 
 class WaveformTransform(keras.layers.Layer):
     '''A custom layer to normalize the waveforms before each network evaluation so we don't have to do it manually
@@ -73,23 +74,9 @@ class PLSECounter():
 
     def verify_output_args(self, output_dir, filename="model.keras", overwrite=False):
         '''Verify that the output directory exists and that the output file won't be overwritten'''
-        # Convert relative/symbolic path to an absolute path
-        output_dir = os.path.realpath(output_dir)
-
-        # If the output directory doesn't exist, create it
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        # Construct the full output file path
-        output_file = os.path.join(output_dir, filename)
-
-        # Check if the file already exists
-        if os.path.exists(output_file) and not overwrite:
-            assert False, "Output file (%s) already exists. Use 'overwrite=True' to overwrite it."%output_file
-        else:
-            # File is able to be saved, save location information for future use
-            self.output_args = {
-                'output_dir': output_dir,
-                'output_file': output_file,
-            }
-            return True
+        output_dir, output_file = verify_output(output_dir, filename=filename, overwrite=overwrite)
+        self.output_args = {
+            'output_dir': output_dir,
+            'output_file': output_file,
+        }
+        return True
