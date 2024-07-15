@@ -36,6 +36,7 @@ setup(
     entry_points={
         'console_scripts': [
             'plse_train=plse.traincounter:main',
+            'plse_evaluate=plse.evaluate:main',
         ],
     },
 )
