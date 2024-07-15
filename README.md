@@ -1,32 +1,34 @@
 # *PLSE*
 
-Photoelectron Light Signal Estimator
+Photoelectron Light Signal Estimator.
 A tool to generate neural networks that classify the number of photoelectrons in a PMT waveform. 
-
-
 
 
 ## Installation
 
-First we must set up an anaconda environment with tensorflow installed.  
+It is highly recommended PLSE be installed in a new anaconda environment.  
 
 
-Create a new anaconda environment and install tensorflow ~ 2.11 prerequisites:
+Create a new anaconda environment:
 ```
 conda deactivate
-conda create -n plse python=3.9
-conda activate plse 
-
+conda create -n plse_env python=3.12
+conda activate plse_env
 ```
 
-Install tensorflow using the following [instructions](https://www.tensorflow.org/install/pip).
-
-Once an anaconda environment with tensorflow is properly configured, install PLSE:
+Next, install PLSE:
 ```
 git clone https://github.com/gmwendel/PLSE.git
 cd PLSE
 pip install -e .
 ```
+By default, this will install the CPU version of TensorFlow.
+
+To install the GPU version of TensorFlow, use the following command:
+```
+pip install -e .[gpu]
+```
+
 Verify the scripts have been added to the anaconda environment:
 ```
 plse_train -h

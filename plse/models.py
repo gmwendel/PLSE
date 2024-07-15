@@ -1,12 +1,16 @@
 import tensorflow as tf
+import keras
 from keras import layers, models
 
 
-class WaveformTransform(tf.keras.layers.Layer):
+class WaveformTransform(keras.layers.Layer):
     '''A custom layer to normalize the waveforms before each network evaluation so we don't have to do it manually
     before each time we train or evaluate the network'''
+
     def __init__(self, norm_mean=1800, norm_std=40):
+
         super().__init__()
+
         self.norm_mean = norm_mean
         self.norm_std = norm_std
 
@@ -15,9 +19,9 @@ class WaveformTransform(tf.keras.layers.Layer):
         return normalized_waveforms
 
 
-class PLSECounter(tf.keras.Model):
+class PLSECounter():
+
     def __init__(self, waveform_shape, encoded_npe_shape, norm_mean=0, norm_std=40):
-        super(PLSECounter, self).__init__()
         self.waveform_length = waveform_shape[1]
         self.onehot_npe_length = encoded_npe_shape[1]
         self.norm_mean = norm_mean
@@ -46,8 +50,8 @@ class PLSECounter(tf.keras.Model):
         self.model = models.Model(input_layer, output_layer)
         self.model.summary()
 
-    def compile_model(self, optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), loss='categorical_crossentropy',
-                      metrics="categorical_accuracy"):
+    def compile_model(self, optimizer=keras.optimizers.Adam(learning_rate=0.01), loss='categorical_crossentropy',
+                      metrics=["categorical_accuracy"]):
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     def fit(self, *args, **kwargs):
