@@ -74,7 +74,7 @@ class PLSECounter():
 
     def verify_output_args(self, output_dir, filename="model.keras", overwrite=False):
         '''Verify that the output directory exists and that the output file won't be overwritten'''
-        output_dir, output_file = verify_output(output_dir, filename=filename, overwrite=False)
+        output_dir, output_file = verify_output(output_dir, filename=filename, overwrite=overwrite)
         self.output_args = {
             'output_dir': output_dir,
             'output_file': output_file,
