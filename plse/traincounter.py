@@ -87,8 +87,6 @@ def main():
     parser.add_argument('input_files', nargs='+', help='Input files containing the waveforms and npe data.')
     parser.add_argument('-o', '--output-dir', help='Path to the directory to save the trained model and logs.',
                         default='./plse_counter')
-    parser.add_argument('-of', '--output-file', help='File name to save the trained model.',
-                        default='model.keras')
     parser.add_argument('-f', '--force-overwrite', action='store_true', help='Force an overwrite of the output.')
     parser.add_argument('--export-tf', action='store_true', help='Export TensorFlow saved model.')
     parser.add_argument('--save_history', action='store_true', help='Save training history and checkpoints.')
@@ -101,7 +99,6 @@ def main():
         input_files = args.input_files,
         # Save settings
         output_dir = args.output_dir,
-        model_filename = args.output_file,
         overwrite = args.force_overwrite,
         save_history = args.save_history,
         export_tf = args.export_tf,
