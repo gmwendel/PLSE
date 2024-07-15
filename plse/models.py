@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import keras
 from keras import layers, models
@@ -27,6 +28,7 @@ class PLSECounter():
         self.norm_mean = norm_mean
         self.norm_std = norm_std
         self.build_model()
+        self.output_args = None
 
     def build_model(self):
         input_shape = (self.waveform_length, 1)
@@ -58,4 +60,36 @@ class PLSECounter():
         return self.model.fit(*args, **kwargs)
 
     def save(self, *args, **kwargs):
-        self.model.save(*args, **kwargs)
+        '''Save the model as a .keras file'''
+        assert self.output_args is not None, "Please run `verify_output_args` before attempting to save model."
+        assert self.output_args['output_file'].endswith('.keras'), "Only keras format can be used for saving. For other types, use `export`."
+        self.model.save(self.output_args['output_file'], *args, **kwargs)
+
+    def export_tf(self, *args, **kwargs):
+        '''Export the model as a TensorFlow saved model'''
+        assert self.output_args is not None, "Please run `verify_output_args` before attempting to export model."
+        tf_output_dir = os.path.join(self.output_args['output_dir'], 'tf_saved_model')
+        self.model.export(tf_output_dir, format="tf_saved_model", *args, **kwargs)
+
+    def verify_output_args(self, output_dir, filename="model.keras", overwrite=False):
+        '''Verify that the output directory exists and that the output file won't be overwritten'''
+        # Convert relative/symbolic path to an absolute path
+        output_dir = os.path.realpath(output_dir)
+
+        # If the output directory doesn't exist, create it
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Construct the full output file path
+        output_file = os.path.join(output_dir, filename)
+
+        # Check if the file already exists
+        if os.path.exists(output_file) and not overwrite:
+            assert False, "Output file (%s) already exists. Use 'overwrite=True' to overwrite it."%output_file
+        else:
+            # File is able to be saved, save location information for future use
+            self.output_args = {
+                'output_dir': output_dir,
+                'output_file': output_file,
+            }
+            return True
