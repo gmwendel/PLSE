@@ -23,7 +23,7 @@ extras_require = {
 setup(
     name="PLSE",
     description="A simple 1D CNN to count the number of photoelectrons in a waveform",
-    author="Garrett Wendel et al.",
+    author="Garrett Wendel, Kayla DeHolton",
     author_email="gmw5164@psu.edu",
     url="tbd",
     license="Apache 2.0",
