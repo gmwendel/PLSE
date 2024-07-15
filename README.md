@@ -40,7 +40,7 @@ plse_train -h
 Train a PLSE network by running:
 
 ```
-plse_train mywaveformfile.npz -n mynetwork
+plse_train mywaveformfile.npz -o mynetwork
 ```
 
 glob can be used to specify multiple waveform files e.g. mywaveformfiles*.npz
