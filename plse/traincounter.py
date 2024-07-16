@@ -53,6 +53,7 @@ def train_counter(
     training_metadata = {
         'max_epochs':max_epochs,
         'early_stopping_patience':early_stopping_patience,
+        'learning_rate_patience':learning_rate_patience,
     }
     training_metadata_filename = os.path.join(output_dir,'training_metadata.yml')
     with open(training_metadata_filename, 'w') as f:
