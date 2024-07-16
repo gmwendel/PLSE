@@ -20,6 +20,7 @@ def train_counter(
         # Training settings
         max_epochs=50,
         early_stopping_patience=5,
+        learning_rate_patience=3,
         use_multiprocessing=False,
     ):
 
@@ -64,6 +65,10 @@ def train_counter(
     earlystopping_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=early_stopping_patience)
     callbacks.append(earlystopping_callback)
 
+    # Learning rate Reduce on Plateau
+    learningrate_callback = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', patience=learning_rate_patience)
+    callbacks.append(learningrate_callback)
+
     if save_history:
         logging.info("Initializing checkpoints and TensorBoard logs...")
         # Make subdir for saving history
@@ -104,6 +109,7 @@ def main():
     parser.add_argument('--save_history', action='store_true', help='Save training history and checkpoints.')
     parser.add_argument('--max-epochs', type=int, default=50, help='Maximum number of epochs allowed during training.')
     parser.add_argument('--early-stopping-patience', type=int, default=5, help='Number of epochs with no improvement in val loss in order to stop training.')
+    parser.add_argument('--learning-rate-patience', type=int, default=3, help='Number of epochs with no improvement in val loss in order to reduce learning rate.')
     parser.add_argument('--use_multiprocessing', action='store_true', default=False,
                         help='Use multiprocessing for data loading.')
     args = parser.parse_args()
@@ -119,6 +125,7 @@ def main():
         # Training settings
         max_epochs = args.max_epochs,
         early_stopping_patience = args.early_stopping_patience,
+        learning_rate_patience = args.learning_rate_patience,
         use_multiprocessing = args.use_multiprocessing,
     )
 
