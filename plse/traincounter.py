@@ -25,6 +25,7 @@ def train_counter(
     ):
 
     assert not use_multiprocessing, "`use_multiprocessing` is not currently supported."
+    assert learning_rate_patience < early_stopping_patience, "Learning rate patience should be smaller than earlier stopping patience."
 
     # Set up logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
