@@ -137,13 +137,27 @@ class DataLoader:
 
 
 class DataGenerator(Sequence):
-    def __init__(self, x, y, n_min, n_max, batch_size=2**13, shuffle=True):
+    def __init__(self, x, y, batch_size=2**13, shuffle=True, augment_data=True, max_shift_left=10, max_shift_right=10):
+        """
+        DataGenerator constructor.
+
+        Parameters:
+            x (np.ndarray): The input data for the model, 2d waveform data.
+            y (np.ndarray): The true output data for the model, encoded_npe data or 2D time data.
+            batch_size(int): The batch size.
+            shuffle (bool): Whether to shuffle at the end of each epoch.
+            augment_data (bool): Whether to shift waveform data to left and right, as augmentation.
+            max_shift_left (int): Maximum number of bins to shift to the left when augmenting waveform data.
+            max_shift_right (int): Maximum number of bins to shift to the right when augmenting waveform data.
+        """
         self.x = x
         self.y = y
-        self.n_min = n_min
-        self.n_max = n_max
+        assert max_shift_right>=0, "Maximum shift to the right should not be negative"
+        self.max_shift_left = -1*abs(max_shift_left)
+        self.max_shift_right = abs(max_shift_right)
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.augment_data = augment_data
         self.indexes = np.arange(len(self.x))
         self.on_epoch_end()
 
@@ -156,7 +170,8 @@ class DataGenerator(Sequence):
         batch_y = self.y[indexes]
 
         # Apply data augmentation
-        batch_x = self._augment_data(batch_x)
+        if self.augment_data:
+            batch_x = self._augment_data(batch_x)
 
         return batch_x, batch_y
 
@@ -167,7 +182,7 @@ class DataGenerator(Sequence):
     def _augment_data(self, batch_x):
         batch_size, seq_length = batch_x.shape
         # Generate random shifts
-        shifts = np.random.randint(self.n_min, self.n_max + 1, batch_size)
+        shifts = np.random.randint(self.max_shift_left, self.max_shift_left + 1, batch_size)
         # Create an array with indices
         indices = np.mod(np.arange(seq_length) - shifts[:, None], seq_length)
         # Apply shifts
