@@ -46,12 +46,15 @@ def train_counter(
     # Take 1/10 total data and make it validation
     splits = int(len(waveforms) / 10)
     augment_data = True if mode=='counter' else False
-    train_dataset = DataGenerator(waveforms[:-splits], true_output[:-splits], -20, 30 + 1, augment_data=augment_data)
-    validation_dataset = DataGenerator(waveforms[-splits:], true_output[-splits:], -20, 30 + 1)
+    train_dataset = DataGenerator(waveforms[:-splits], true_output[:-splits], augment_data=augment_data,
+                                  max_shift_left=20, max_shift_right=30+1)
+    validation_dataset = DataGenerator(waveforms[-splits:], true_output[-splits:],
+                                  max_shift_left=20, max_shift_right=30+1)
 
     logging.info("Building and compiling the model...")
 
-    plse_counter = PLSECounter(waveforms.shape, true_output.shape, counter=True if mode=='counter' else False)
+    plse_counter = PLSECounter(waveforms.shape, true_output.shape, counter=True if mode=='counter' else False,
+                               output_length=None if mode=='counter' else 1) #TODO: currently only supports single PE timing
     plse_counter.compile_model()
 
     # Verify the output directory and file before training
