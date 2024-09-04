@@ -17,6 +17,8 @@ def train_counter(
         overwrite=False,
         save_history=False,
         export_tf=False,
+        # Model settings
+        mode='counter',
         # Training settings
         max_epochs=50,
         early_stopping_patience=5,
@@ -35,15 +37,21 @@ def train_counter(
     dataloader = DataLoader(input_files)
     waveforms = dataloader.load_waveforms()
     encoded_npes = dataloader.load_encoded_npe()
+    pe_times = dataloader.load_times()
+
+    # Define true network output
+    # Normalize pe times to be O(1)
+    true_output = encoded_npes if mode=='counter' else pe_times[:,0:1]/100.
 
     # Take 1/10 total data and make it validation
     splits = int(len(waveforms) / 10)
-    train_dataset = DataGenerator(waveforms[:-splits], encoded_npes[:-splits], -20, 30 + 1)
-    validation_dataset = DataGenerator(waveforms[-splits:], encoded_npes[-splits:], -20, 30 + 1)
+    augment_data = True if mode=='counter' else False
+    train_dataset = DataGenerator(waveforms[:-splits], true_output[:-splits], -20, 30 + 1, augment_data=augment_data)
+    validation_dataset = DataGenerator(waveforms[-splits:], true_output[-splits:], -20, 30 + 1)
 
     logging.info("Building and compiling the model...")
 
-    plse_counter = PLSECounter(waveforms.shape, encoded_npes.shape)
+    plse_counter = PLSECounter(waveforms.shape, true_output.shape, counter=True if mode=='counter' else False)
     plse_counter.compile_model()
 
     # Verify the output directory and file before training
@@ -103,12 +111,13 @@ def train_counter(
 
 def main():
     parser = argparse.ArgumentParser(description='Train PLSECounter model.')
-    parser.add_argument('input_files', nargs='+', help='Input files containing the waveforms and npe data.')
+    parser.add_argument('input_files', nargs='+', help='Input files containing the waveforms, npe data, and times.')
     parser.add_argument('-o', '--output-dir', help='Path to the directory to save the trained model and logs.',
                         default='./plse_counter')
     parser.add_argument('-f', '--force-overwrite', action='store_true', help='Force an overwrite of the output.')
     parser.add_argument('--export-tf', action='store_true', help='Export TensorFlow saved model.')
     parser.add_argument('--save_history', action='store_true', help='Save training history and checkpoints.')
+    parser.add_argument('--mode', default='counter', help='Whether to run in counter mode or timing mode.')
     parser.add_argument('--max-epochs', type=int, default=50, help='Maximum number of epochs allowed during training.')
     parser.add_argument('--early-stopping-patience', type=int, default=5, help='Number of epochs with no improvement in val loss in order to stop training.')
     parser.add_argument('--learning-rate-patience', type=int, default=3, help='Number of epochs with no improvement in val loss in order to reduce learning rate.')
@@ -124,6 +133,8 @@ def main():
         overwrite = args.force_overwrite,
         save_history = args.save_history,
         export_tf = args.export_tf,
+        # Model settings
+        mode = args.mode,
         # Training settings
         max_epochs = args.max_epochs,
         early_stopping_patience = args.early_stopping_patience,
