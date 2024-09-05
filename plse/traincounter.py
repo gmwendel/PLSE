@@ -35,9 +35,7 @@ def train_counter(
     # Load data
     logging.info("Loading data...")
     dataloader = DataLoader(input_files)
-    waveforms = dataloader.load_waveforms()
-    encoded_npes = dataloader.load_encoded_npe()
-    pe_times = dataloader.load_times()
+    waveforms, encoded_npes, pe_times = dataloader.load_good_data()
 
     # Define true network output
     # Normalize pe times to be O(1)
