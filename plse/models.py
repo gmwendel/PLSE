@@ -23,11 +23,12 @@ class WaveformTransform(keras.layers.Layer):
 
 class PLSECounter():
 
-    def __init__(self, waveform_shape, encoded_npe_shape, norm_mean=0, norm_std=40):
+    def __init__(self, waveform_shape, encoded_npe_shape, counter=True, norm_mean=0, norm_std=40, output_length=None):
         self.waveform_length = waveform_shape[1]
-        self.onehot_npe_length = encoded_npe_shape[1]
+        self.output_length = output_length if output_length is not None else encoded_npe_shape[1]
         self.norm_mean = norm_mean
         self.norm_std = norm_std
+        self.counter = counter
         self.build_model()
         self.output_args = None
 
@@ -38,9 +39,18 @@ class PLSECounter():
         waveform_transform = WaveformTransform(norm_mean=self.norm_mean, norm_std=self.norm_std)
         normalized_waveforms = waveform_transform(input_layer)
 
-        conv1 = layers.Conv1D(filters=8, kernel_size=4, activation='relu')(normalized_waveforms)
-        conv2 = layers.Conv1D(filters=8, kernel_size=16, activation='relu')(normalized_waveforms)
-        merged = layers.Concatenate(axis=-2)([conv1, conv2])
+        if self.counter:
+            conv1 = layers.Conv1D(filters=8, kernel_size=4, activation='relu')(normalized_waveforms)
+            conv2 = layers.Conv1D(filters=8, kernel_size=16, activation='relu')(normalized_waveforms)
+            merged = layers.Concatenate(axis=-2)([conv1, conv2])
+        else:
+            conv1a = layers.Conv1D(filters=8, kernel_size=3, activation='relu')(normalized_waveforms)
+            conv1b = layers.Conv1D(filters=8, kernel_size=3, activation='relu')(conv1a)
+            conv2a = layers.Conv1D(filters=8, kernel_size=6, activation='relu')(normalized_waveforms)
+            conv2b = layers.Conv1D(filters=8, kernel_size=6, activation='relu')(conv2a)
+            conv3a = layers.Conv1D(filters=8, kernel_size=12, activation='relu')(normalized_waveforms)
+            conv3b = layers.Conv1D(filters=8, kernel_size=12, activation='relu')(conv3a)
+            merged = layers.Concatenate(axis=-2)([conv1b, conv2b, conv3b])
 
         flatten = layers.Flatten()(merged)
         dense1 = layers.Dense(128, activation='relu')(flatten)
@@ -48,13 +58,19 @@ class PLSECounter():
         dense3 = layers.Dense(32, activation='relu')(dense2)
         dense4 = layers.Dense(32, activation='relu')(dense3)
 
-        output_layer = layers.Dense(self.onehot_npe_length, activation="softmax")(dense4)
+        activation = "softmax" if self.counter else "linear"
+        output_layer = layers.Dense(self.output_length, activation=activation)(dense4)
 
         self.model = models.Model(input_layer, output_layer)
         self.model.summary()
 
-    def compile_model(self, optimizer=keras.optimizers.Adam(learning_rate=0.01), loss='categorical_crossentropy',
-                      metrics=["categorical_accuracy"]):
+    def compile_model(self, optimizer=keras.optimizers.Adam(learning_rate=0.01), loss=None,
+                      metrics=None):
+        # If user didn't specify loss or metrics, get the default based on the mode
+        if loss is None:
+            loss='categorical_crossentropy' if self.counter else "mse"
+        if metrics is None:
+            metrics=["categorical_accuracy"] if self.counter else ["mae"]
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     def fit(self, *args, **kwargs):
