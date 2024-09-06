@@ -115,6 +115,28 @@ class DataLoader:
         encoded_npe = DataLoader.one_hot_encode_with_overflow(nphotons, self.npe_cut)
         return encoded_npe
 
+    def load_good_data(self):
+        """
+        Load the waveforms, encoded_npe, and pe_times.
+        Exclude waveforms where a true photon time is not finite, while printing a warning.
+
+        Returns:
+            np.ndarray, np.ndarray, np.ndarray: The waveforms, encoded_npe, and pe_times data.
+        """
+        waveforms = self.load_waveforms()
+        encoded_npes = self.load_encoded_npe()
+        pe_times = self.load_times()
+
+        # Make a mask excluding infs and nans
+        good_event_mask = np.all(np.isfinite(pe_times),axis=1)
+        print(len(good_event_mask))
+
+        # Check for bad pe times
+        if np.sum(~good_event_mask)>0:
+            print('\n\n ---> WARNING!! Bad PE times present in the files!!! %d events will be removed.\n\n'%np.sum(~good_event_mask))
+
+        return waveforms[good_event_mask], encoded_npes[good_event_mask], pe_times[good_event_mask]
+
     @staticmethod
     def one_hot_encode_with_overflow(n, n_max):
         """
