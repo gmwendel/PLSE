@@ -115,7 +115,7 @@ def get_truth_info(input_filename, good_events):
             for i_MCPhoton in range(nphotons):
                 MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
                 time = MCPhoton.GetFrontEndTime()-trigger_time+60 #TODO: fix 60 so it's not set manually
-                if (time>0) & (time<200):
+                if (time>0) and (time<200):
                     photon_times.append(time)
             # Only get the first 100 PE
             photon_times = np.array(photon_times)[0:100]
