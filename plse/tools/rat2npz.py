@@ -118,7 +118,7 @@ def get_truth_info(input_filename, good_events):
                 if (time>0) & (time<200):
                     photon_times.append(time)
             # Only get the first 100 PE
-            photon_times = photon_times[0:100]
+            photon_times = np.array(photon_times)[0:100]
 
             # Count number of photons in window
             nphotons = len(photon_times)
