@@ -87,7 +87,7 @@ def process_event_waveforms(ev, digitizer, sampling_rate, time_step, all_wavefor
         dynamic_range = digitizer.GetDynamicRange()
         nbits = digitizer.GetNBits()
         voltage_res = dynamic_range / (1 << nbits)
-        hwaveform = waveform_array * voltage_res - 1800
+        hwaveform = waveform_array * voltage_res - 1800 #TODO: fix 1800 so it's not set manually
 
         all_waveforms.append(hwaveform)
 
@@ -104,20 +104,25 @@ def get_truth_info(input_filename, good_events):
         ev = ds.GetEV(0)
         mc = ds.GetMC()
         nhitpmts = ev.GetPMTCount()
+        trigger_time = ev.GetCalibratedTriggerTime()
 
         for i_pmt in range(nhitpmts):
             photon_times_on_this_pmt = np.full(100, -999, dtype=np.float32)
-            nphotons = mc.GetMCPMT(i_pmt).GetMCPhotonCount()
-            all_nphotons.append(nphotons)
             allevtinfo.append([i_event, i_pmt])
 
             # Extract non-padding values and sort them
             photon_times = []
             for i_MCPhoton in range(nphotons):
-                if i_MCPhoton < 100:
-                    MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
-                    time = MCPhoton.GetFrontEndTime()
+                MCPhoton = mc.GetMCPMT(i_pmt).GetMCPhoton(i_MCPhoton)
+                time = MCPhoton.GetFrontEndTime()-trigger_time+60 #TODO: fix 60 so it's not set manually
+                if (time>0) & (time<200):
                     photon_times.append(time)
+            # Only get the first 100 PE
+            photon_times = photon_times[0:100]
+
+            # Count number of photons in window
+            nphotons = len(photon_times)
+            all_nphotons.append(nphotons)
 
             # Sort the non-padding values
             sorted_times = sorted(photon_times)
