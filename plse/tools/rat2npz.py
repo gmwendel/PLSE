@@ -78,7 +78,7 @@ def get_digitizer_info(event):
 def process_event_waveforms(ev, digitizer, sampling_rate, time_step, all_waveforms):
     """Process waveforms for a single event."""
     for iPMT in range(ev.GetPMTCount()):
-        pmt = ev.GetPMT(iPMT)
+        pmt = ev.GetOrCreatePMT(iPMT)
         pmtID = pmt.GetID()
         waveform = digitizer.GetWaveform(pmtID)
 
