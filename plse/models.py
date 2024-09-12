@@ -65,13 +65,13 @@ class PLSECounter():
         self.model.summary()
 
     def compile_model(self, optimizer=keras.optimizers.Adam(learning_rate=0.01), loss=None,
-                      metrics=None):
+                      metrics=None, **kwargs):
         # If user didn't specify loss or metrics, get the default based on the mode
         if loss is None:
             loss='categorical_crossentropy' if self.counter else "mse"
         if metrics is None:
             metrics=["categorical_accuracy"] if self.counter else ["mae"]
-        self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+        self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics, **kwargs)
 
     def fit(self, *args, **kwargs):
         return self.model.fit(*args, **kwargs)
@@ -82,11 +82,11 @@ class PLSECounter():
         assert self.output_args['output_file'].endswith('.keras'), "Only keras format can be used for saving. For other types, use `export`."
         self.model.save(self.output_args['output_file'], *args, **kwargs)
 
-    def export_tf(self, *args, **kwargs):
+    def export_tf(self, **kwargs):
         '''Export the model as a TensorFlow saved model'''
         assert self.output_args is not None, "Please run `verify_output_args` before attempting to export model."
         tf_output_dir = os.path.join(self.output_args['output_dir'], 'tf_saved_model')
-        self.model.export(tf_output_dir, format="tf_saved_model", *args, **kwargs)
+        self.model.export(tf_output_dir, format="tf_saved_model", **kwargs)
 
     def verify_output_args(self, output_dir, filename="model.keras", overwrite=False):
         '''Verify that the output directory exists and that the output file won't be overwritten'''
