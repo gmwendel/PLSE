@@ -128,12 +128,12 @@ def get_truth_info(input_filename, good_events):
         nhitpmts = ev.GetPMTCount()
         trigger_time = ev.GetCalibratedTriggerTime()
 
-        # Store PMT information and photon times together for MC PMTs
-        pmt_info_list = []  # To store (PMT ID, photon times, event info) for sorting later
+        # Store PMT information, photon times, and photon count together for MC PMTs
+        pmt_info_list = []  # To store (PMT ID, photon times, nphotons, event info) for sorting later
 
         for i_pmt in range(nhitpmts):
-            nphotons = mc.GetMCPMT(i_pmt).GetMCPhotonCount()
-            pmt_id = mc.GetMCPMT(i_pmt).GetID()
+            nphotons = mc.GetMCPMT(i_pmt).GetMCPhotonCount()  # Get number of photons
+            pmt_id = mc.GetMCPMT(i_pmt).GetID()  # Get PMT ID
             allevtinfo_entry = [i_event, pmt_id]  # Store event and PMT ID
 
             # Collect valid photon times for this PMT
@@ -149,16 +149,17 @@ def get_truth_info(input_filename, good_events):
 
             # Pad the array to length 100 with -999
             photon_times_padded = np.pad(photon_times, (0, max(0, 100 - len(photon_times))), constant_values=-999)
-            all_nphotons.append(nphotons)
-            # Append the PMT ID, photon times, and allevtinfo entry for sorting later
-            pmt_info_list.append((pmt_id, photon_times_padded, allevtinfo_entry))
+
+            # Append PMT ID, photon times, nphotons, and allevtinfo entry to the list
+            pmt_info_list.append((pmt_id, photon_times_padded, nphotons, allevtinfo_entry))
 
         # Sort the list by PMT ID (first element in the tuple)
         pmt_info_list_sorted = sorted(pmt_info_list, key=lambda x: x[0])
 
-        # Append the sorted photon times and allevtinfo entries
-        all_hit_times.extend([photon_times_padded for _, photon_times_padded, _ in pmt_info_list_sorted])
-        allevtinfo_sorted = [allevtinfo_entry for _, _, allevtinfo_entry in pmt_info_list_sorted]
+        # Append the sorted photon times, nphotons, and allevtinfo entries
+        all_hit_times.extend([photon_times_padded for _, photon_times_padded, _, _ in pmt_info_list_sorted])
+        all_nphotons.extend([nphotons for _, _, nphotons, _ in pmt_info_list_sorted])  # Add sorted nphotons
+        allevtinfo_sorted = [allevtinfo_entry for _, _, _, allevtinfo_entry in pmt_info_list_sorted]
 
         # Overwrite allevtinfo with the sorted version
         allevtinfo.extend(allevtinfo_sorted)
