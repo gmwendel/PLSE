@@ -1,5 +1,8 @@
+import awkward as ak
+import glob
 import numpy as np
 import os
+import uproot
 import warnings
 from keras.utils import Sequence
 
@@ -156,14 +159,6 @@ class DataLoader:
         encoded_matrix[np.arange(len(n))[idx_within_range], n[idx_within_range]] = 1
         encoded_matrix[np.arange(len(n))[idx_overflow], -1] = 1  # Overflow bin
         return encoded_matrix.astype(np.float32)
-
-
-import numpy as np
-import uproot
-import glob
-import awkward as ak
-import os
-import warnings
 
 class NtupleDataLoader:
     """
