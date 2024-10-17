@@ -13,7 +13,7 @@ install_requires = [
     "pandas",
     "seaborn",
     "uproot",
-    "tensorflow>=2.16"  # Default to CPU version of TensorFlow
+    "tensorflow>=2.16",  # Default to CPU version of TensorFlow
     "yaml"
 ]
 
