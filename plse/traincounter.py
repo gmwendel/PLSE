@@ -52,7 +52,6 @@ def train_counter(
 
     # Load data
     logging.info("Loading data...")
-    logging.info("Loading data...")
     if use_ntuple_loader:
         dataloader = NtupleDataLoader(input_files, npe_cut=10)
         waveforms, encoded_npes, pe_times = dataloader.load_good_data()
