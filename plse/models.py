@@ -35,6 +35,7 @@ class PLSECounter():
     def build_model(self):
         input_shape = (self.waveform_length, 1)
         input_layer = layers.Input(shape=input_shape)
+        photosensor_input = layers.Input(shape=(1,), name='photosensor_type')
 
         waveform_transform = WaveformTransform(norm_mean=self.norm_mean, norm_std=self.norm_std)
         normalized_waveforms = waveform_transform(input_layer)
@@ -53,7 +54,9 @@ class PLSECounter():
             merged = layers.Concatenate(axis=-2)([conv1b, conv2b, conv3b])
 
         flatten = layers.Flatten()(merged)
-        dense1 = layers.Dense(128, activation='relu')(flatten)
+        # Add this line
+        concatenated = layers.Concatenate(axis=-1)([flatten, photosensor_input])
+        dense1 = layers.Dense(128, activation='relu')(concatenated)
         dense2 = layers.Dense(32, activation='relu')(dense1)
         dense3 = layers.Dense(32, activation='relu')(dense2)
         dense4 = layers.Dense(32, activation='relu')(dense3)
