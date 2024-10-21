@@ -479,11 +479,11 @@ class DataGenerator(Sequence):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.augment_data = augment_data
-        self.indexes = np.arange(len(self.x))
+        self.indexes = np.arange(len(self.x1))
         self.on_epoch_end()
 
     def __len__(self):
-        return len(self.x) // self.batch_size
+        return len(self.x1) // self.batch_size
 
     def __getitem__(self, index):
         indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
