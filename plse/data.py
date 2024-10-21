@@ -495,7 +495,11 @@ class DataGenerator(Sequence):
         if self.augment_data:
             batch_x1 = self._augment_data(batch_x1)
 
-        batch_x = [batch_x1, batch_x2.reshape(-1, 1)]  # Ensure batch_x2 has shape (batch_size, 1)
+        # Prepare inputs as a dictionary matching the model's input names
+        batch_x = {
+            'waveform_input': batch_x1,
+            'photosensor_type': batch_x2.reshape(-1, 1).astype(np.float32)
+        }
         return batch_x, batch_y
 
     def on_epoch_end(self):
