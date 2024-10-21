@@ -5,12 +5,12 @@ from keras import layers, models
 
 from plse.utils import verify_output
 
+
 class WaveformTransform(keras.layers.Layer):
     '''A custom layer to normalize the waveforms before each network evaluation so we don't have to do it manually
     before each time we train or evaluate the network'''
 
     def __init__(self, norm_mean=1800, norm_std=40):
-
         super().__init__()
 
         self.norm_mean = norm_mean
@@ -34,7 +34,7 @@ class PLSECounter():
 
     def build_model(self):
         input_shape = (self.waveform_length, 1)
-        input_layer = layers.Input(shape=input_shape)
+        input_layer = layers.Input(shape=input_shape, name='waveform_input')
         photosensor_input = layers.Input(shape=(1,), name='photosensor_type')
 
         waveform_transform = WaveformTransform(norm_mean=self.norm_mean, norm_std=self.norm_std)
@@ -71,9 +71,9 @@ class PLSECounter():
                       metrics=None, **kwargs):
         # If user didn't specify loss or metrics, get the default based on the mode
         if loss is None:
-            loss='categorical_crossentropy' if self.counter else "mse"
+            loss = 'categorical_crossentropy' if self.counter else "mse"
         if metrics is None:
-            metrics=["categorical_accuracy"] if self.counter else ["mae"]
+            metrics = ["categorical_accuracy"] if self.counter else ["mae"]
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics, **kwargs)
 
     def fit(self, *args, **kwargs):
@@ -82,7 +82,8 @@ class PLSECounter():
     def save(self, *args, **kwargs):
         '''Save the model as a .keras file'''
         assert self.output_args is not None, "Please run `verify_output_args` before attempting to save model."
-        assert self.output_args['output_file'].endswith('.keras'), "Only keras format can be used for saving. For other types, use `export`."
+        assert self.output_args['output_file'].endswith(
+            '.keras'), "Only keras format can be used for saving. For other types, use `export`."
         self.model.save(self.output_args['output_file'], *args, **kwargs)
 
     def export_tf(self, **kwargs):
