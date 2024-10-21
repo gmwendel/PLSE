@@ -51,25 +51,26 @@ def train_counter(
             raise ValueError(f"Unsupported file extension: {ext}. Supported extensions are .root and .npz")
 
     # Load data
+    # Load data
     logging.info("Loading data...")
     if use_ntuple_loader:
         dataloader = NtupleDataLoader(input_files, npe_cut=10)
-        waveforms, encoded_npes, pe_times = dataloader.load_good_data()
+        waveforms, encoded_npes, pe_times, pmt_types = dataloader.load_good_data()
     else:
         dataloader = DataLoader(input_files, npe_cut=10)
         waveforms, encoded_npes, pe_times = dataloader.load_good_data()
+        pmt_types = np.zeros(len(waveforms), dtype=np.float32)  # Placeholder if pmt_types not available
 
     # Define true network output
-    # Normalize pe times to be O(1)
     true_output = encoded_npes if mode == 'counter' else pe_times[:, 0:1] / 100.
 
-    # Take 1/10 total data and make it validation
+    # Create datasets
     splits = int(len(waveforms) / 10)
     augment_data = True if mode == 'counter' else False
-    train_dataset = DataGenerator(waveforms[:-splits], true_output[:-splits], augment_data=augment_data,
-                                  max_shift_left=20, max_shift_right=30 + 1)
-    validation_dataset = DataGenerator(waveforms[-splits:], true_output[-splits:],
-                                       max_shift_left=20, max_shift_right=30 + 1)
+    train_dataset = DataGenerator(waveforms[:-splits], pmt_types[:-splits], true_output[:-splits],
+                                  augment_data=augment_data, max_shift_left=20, max_shift_right=30 + 1)
+    validation_dataset = DataGenerator(waveforms[-splits:], pmt_types[-splits:], true_output[-splits:],
+                                       augment_data=augment_data, max_shift_left=20, max_shift_right=30 + 1)
 
     logging.info("Building and compiling the model...")
 
