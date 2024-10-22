@@ -6,7 +6,7 @@ import keras
 import yaml
 from plse.data import DataLoader, DataGenerator, NtupleDataLoader
 from plse.models import PLSECounter
-
+import numpy as np
 
 def train_counter(
         # Training files
