@@ -64,7 +64,8 @@ class PLSECounter():
         activation = "softmax" if self.counter else "linear"
         output_layer = layers.Dense(self.output_length, activation=activation)(dense4)
 
-        self.model = models.Model(input_layer, output_layer)
+#https://stackoverflow.com/questions/78804130/what-is-the-proper-way-to-deal-with-dimensionality-in-conv1d-layers-in-tensorflo/78804631#78804631
+        self.model = models.Model([photosensor_input, input_layer], output_layer)
         self.model.summary()
 
     def compile_model(self, optimizer=keras.optimizers.Adam(learning_rate=0.01), loss=None,
