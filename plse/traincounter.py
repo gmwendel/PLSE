@@ -74,7 +74,7 @@ def train_counter(
 
     logging.info("Building and compiling the model...")
 
-    plse_counter = PLSECounter(waveforms.shape, true_output.shape, counter=True if mode == 'counter' else False,
+    plse_counter = PLSECounter(waveforms.shape, true_output.shape, norm_mean=np.mean(waveforms), counter=True if mode == 'counter' else False,
                                output_length=None if mode == 'counter' else 1)  # TODO: currently only supports single PE timing
     plse_counter.compile_model()
 
