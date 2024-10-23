@@ -131,12 +131,13 @@ class DataLoader:
         pe_times = self.load_times()
 
         # Make a mask excluding infs and nans
-        good_event_mask = np.all(np.isfinite(pe_times),axis=1)
+        good_event_mask = np.all(np.isfinite(pe_times), axis=1)
         print(len(good_event_mask))
 
         # Check for bad pe times
-        if np.sum(~good_event_mask)>0:
-            print('\n\n ---> WARNING!! Bad PE times present in the files!!! %d events will be removed.\n\n'%np.sum(~good_event_mask))
+        if np.sum(~good_event_mask) > 0:
+            print('\n\n ---> WARNING!! Bad PE times present in the files!!! %d events will be removed.\n\n' % np.sum(
+                ~good_event_mask))
 
         return waveforms[good_event_mask], encoded_npes[good_event_mask], pe_times[good_event_mask]
 
@@ -159,6 +160,7 @@ class DataLoader:
         encoded_matrix[np.arange(len(n))[idx_within_range], n[idx_within_range]] = 1
         encoded_matrix[np.arange(len(n))[idx_overflow], -1] = 1  # Overflow bin
         return encoded_matrix.astype(np.float32)
+
 
 class NtupleDataLoader:
     """
@@ -231,6 +233,7 @@ class NtupleDataLoader:
         """
         Load meta data from all files and check consistency.
         """
+
         def read_meta(file_path):
             with uproot.open(file_path) as file:
                 meta_tree = file["meta"]
@@ -252,8 +255,8 @@ class NtupleDataLoader:
 
         # Store the consistent meta data
         self.digitizer_sample_rate = self.digitizer_sample_rate_list[0]  # np.float32
-        self.digitizer_bit_to_mV = self.digitizer_bit_to_mV_list[0]      # np.float32
-        self.pmtid_to_type = self.pmtid_to_type_list[0]                  # np.int32
+        self.digitizer_bit_to_mV = self.digitizer_bit_to_mV_list[0]  # np.float32
+        self.pmtid_to_type = self.pmtid_to_type_list[0]  # np.int32
 
     def _load_waveforms_tree_array(self, branch_name, dtype):
         """
@@ -284,6 +287,22 @@ class NtupleDataLoader:
         if self._evid is None:
             self._evid = self._load_waveforms_tree_array("evid", np.int32)
         return self._evid
+
+    def load_pmtid(self):
+        if self._waveform_pmtid is None:
+            pmtid_arrays = []
+            for file_path in self.input_files:
+                with uproot.open(file_path) as file:
+                    waveforms_tree = file["waveforms"]
+                    pmtids = waveforms_tree["waveform_pmtid"].array(library="np").astype(np.int32)
+                    pmtid_arrays.append(pmtids)
+            self._waveform_pmtid = np.concatenate(pmtid_arrays)
+        return self._waveform_pmtid
+
+    def load_pmt_type(self):
+        pmtids = self.load_pmtid()
+        pmt_types = self.pmtid_to_type[pmtids]
+        return pmt_types.astype(np.float32)
 
     def load_npe(self):
         """
@@ -338,7 +357,8 @@ class NtupleDataLoader:
                     too_long = lengths > nentries
                     if ak.any(too_long):
                         num_too_long = ak.sum(too_long)
-                        print(f"Warning: {num_too_long} events have more pulse times than nentries ({nentries}). Cutting off extra times.")
+                        print(
+                            f"Warning: {num_too_long} events have more pulse times than nentries ({nentries}). Cutting off extra times.")
                     # Pad or truncate to nentries
                     inWindowPulseTimes_padded = ak.pad_none(inWindowPulseTimes_sorted, nentries, clip=True)
                     # Replace None with -999
@@ -367,7 +387,8 @@ class NtupleDataLoader:
                     # Read waveform data directly as NumPy array
                     waveform_data = waveforms_tree["waveform"].array(library="np")
                     # Convert to float32 and scale
-                    waveform_data = np.array([np.array(w, dtype=np.float32) for w in waveform_data]) * self.digitizer_bit_to_mV
+                    waveform_data = np.array(
+                        [np.array(w, dtype=np.float32) for w in waveform_data]) * self.digitizer_bit_to_mV
                     waveform_arrays.append(waveform_data)
             # Concatenate along the first axis (n_events)
             self._waveforms = np.concatenate(waveform_arrays, axis=0)
@@ -398,6 +419,7 @@ class NtupleDataLoader:
         waveforms = self.load_waveforms()
         encoded_npes = self.load_encoded_npe()
         pe_times = self.load_times(nentries)
+        pmt_types = self.load_pmt_type()
 
         # Make a mask excluding infs and nans
         good_event_mask = np.all(np.isfinite(pe_times), axis=1)
@@ -405,10 +427,11 @@ class NtupleDataLoader:
 
         # Check for bad pe times
         if np.sum(~good_event_mask) > 0:
-            print('\n\n ---> WARNING!! Bad PE times present in the files!!! %d events will be removed.\n\n' % np.sum(~good_event_mask))
+            print('\n\n ---> WARNING!! Bad PE times present in the files!!! %d events will be removed.\n\n' % np.sum(
+                ~good_event_mask))
 
-        return waveforms[good_event_mask], encoded_npes[good_event_mask], pe_times[good_event_mask]
-
+        return waveforms[good_event_mask], encoded_npes[good_event_mask], pe_times[good_event_mask], pmt_types[
+            good_event_mask]
     @staticmethod
     def one_hot_encode_with_overflow(n, n_max):
         """
