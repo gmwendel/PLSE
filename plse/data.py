@@ -192,6 +192,7 @@ class NtupleDataLoader:
         self._evid = None
         self._waveform_pmtid = None
         self._inWindowPulseTimes = None
+        self._sorting_indices_list = None
         self._waveforms = None
         self._nphotons = None  # Added placeholder for nphotons
 
@@ -337,35 +338,37 @@ class NtupleDataLoader:
 
         Returns:
             np.ndarray of np.float32: 2D array with sorted and padded in-window pulse times.
-
-        Notes:
-            - Each pulse time array is sorted in ascending order.
-            - Arrays are padded with -999 to the right to reach length nentries.
-            - If any pulse time array exceeds nentries, extra times are discarded and a warning is printed.
         """
         if self._inWindowPulseTimes is None:
             inWindowPulseTimes_list = []
             raw_inWindowPulseTimes = []
+            self._sorting_indices_list = []  # Store per file
             for file_path in self.input_files:
                 with uproot.open(file_path) as file:
                     waveforms_tree = file["waveforms"]
                     inWindowPulseTimes = waveforms_tree["inWindowPulseTimes"].array(library="ak")
                     raw_inWindowPulseTimes.append(inWindowPulseTimes)
-                    # Sort and pad/truncate each subarray
-                    inWindowPulseTimes_sorted = ak.sort(inWindowPulseTimes)
+                    # Get sorting indices
+                    sorting_indices = ak.argsort(inWindowPulseTimes)
+                    # Sort times using the sorting indices
+                    inWindowPulseTimes_sorted = inWindowPulseTimes[sorting_indices]
                     lengths = ak.num(inWindowPulseTimes_sorted)
                     too_long = lengths > nentries
                     if ak.any(too_long):
                         num_too_long = ak.sum(too_long)
                         print(
                             f"Warning: {num_too_long} events have more pulse times than nentries ({nentries}). Cutting off extra times.")
-                    # Pad or truncate to nentries
+                    # Pad or truncate times and sorting indices to nentries
                     inWindowPulseTimes_padded = ak.pad_none(inWindowPulseTimes_sorted, nentries, clip=True)
-                    # Replace None with -999
+                    sorting_indices_padded = ak.pad_none(sorting_indices, nentries, clip=True)
+                    # Replace None with -999 in times, and with -1 in sorting indices
                     inWindowPulseTimes_filled = ak.fill_none(inWindowPulseTimes_padded, -999)
-                    # Convert to NumPy array
+                    sorting_indices_filled = ak.fill_none(sorting_indices_padded, -1)
+                    # Convert times to NumPy array
                     inWindowPulseTimes_np = ak.to_numpy(inWindowPulseTimes_filled).astype(np.float32)
                     inWindowPulseTimes_list.append(inWindowPulseTimes_np)
+                    # Store sorting indices as awkward array
+                    self._sorting_indices_list.append(sorting_indices_filled)
             # Concatenate all arrays
             self._inWindowPulseTimes = np.concatenate(inWindowPulseTimes_list, axis=0)
             # Also store raw inWindowPulseTimes for load_npe
