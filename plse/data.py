@@ -375,6 +375,46 @@ class NtupleDataLoader:
             self._raw_inWindowPulseTimes = ak.concatenate(raw_inWindowPulseTimes)
         return self._inWindowPulseTimes
 
+    def load_charges(self, nentries=100):
+        """
+        Load, sort (using the same sorting as times), pad, and return inWindowPulseCharges data from all files.
+
+        Parameters:
+            nentries (int): Desired fixed length for each pulse charge array.
+
+        Returns:
+            np.ndarray of np.float32: 2D array with sorted and padded in-window pulse charges.
+        """
+        if self._inWindowPulseCharges is None:
+            if not hasattr(self, '_sorting_indices_list') or self._sorting_indices_list is None:
+                raise ValueError("Sorting indices are not available. Please run load_times first.")
+            inWindowPulseCharges_list = []
+            idx_file = 0
+            for file_path in self.input_files:
+                with uproot.open(file_path) as file:
+                    waveforms_tree = file["waveforms"]
+                    inWindowPulseCharges = waveforms_tree["inWindowPulseCharges"].array(library="ak")
+                    # Pad or truncate charges to nentries
+                    inWindowPulseCharges_padded = ak.pad_none(inWindowPulseCharges, nentries, clip=True)
+                    # Replace None with -999
+                    inWindowPulseCharges_filled = ak.fill_none(inWindowPulseCharges_padded, -999)
+                    # Get the corresponding sorting indices
+                    sorting_indices_filled = self._sorting_indices_list[idx_file]
+                    # Replace -1 with None in sorting indices
+                    sorting_indices_valid = ak.where(sorting_indices_filled == -1, None, sorting_indices_filled)
+                    # Apply sorting indices to charges
+                    inWindowPulseCharges_sorted = ak.take_along_axis(inWindowPulseCharges_filled, sorting_indices_valid,
+                                                                     axis=1)
+                    # Fill any None values resulting from indexing with -999
+                    inWindowPulseCharges_sorted_filled = ak.fill_none(inWindowPulseCharges_sorted, -999)
+                    # Convert to NumPy array
+                    inWindowPulseCharges_np = ak.to_numpy(inWindowPulseCharges_sorted_filled).astype(np.float32)
+                    inWindowPulseCharges_list.append(inWindowPulseCharges_np)
+                idx_file += 1
+            # Concatenate all arrays
+            self._inWindowPulseCharges = np.concatenate(inWindowPulseCharges_list, axis=0)
+        return self._inWindowPulseCharges
+
     def load_waveforms(self):
         """
         Load and return waveform data from all files.
