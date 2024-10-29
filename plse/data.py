@@ -161,7 +161,6 @@ class DataLoader:
         encoded_matrix[np.arange(len(n))[idx_overflow], -1] = 1  # Overflow bin
         return encoded_matrix.astype(np.float32)
 
-
 class NtupleDataLoader:
     """
     A class to load and manage waveform and meta data from multiple ROOT files.
@@ -192,6 +191,7 @@ class NtupleDataLoader:
         self._evid = None
         self._waveform_pmtid = None
         self._inWindowPulseTimes = None
+        self._sorting_indices_list = None
         self._waveforms = None
         self._nphotons = None  # Added placeholder for nphotons
 
@@ -255,8 +255,8 @@ class NtupleDataLoader:
 
         # Store the consistent meta data
         self.digitizer_sample_rate = self.digitizer_sample_rate_list[0]  # np.float32
-        self.digitizer_bit_to_mV = self.digitizer_bit_to_mV_list[0]  # np.float32
-        self.pmtid_to_type = self.pmtid_to_type_list[0]  # np.int32
+        self.digitizer_bit_to_mV = self.digitizer_bit_to_mV_list[0]      # np.float32
+        self.pmtid_to_type = self.pmtid_to_type_list[0]                  # np.int32
 
     def _load_waveforms_tree_array(self, branch_name, dtype):
         """
@@ -346,31 +346,78 @@ class NtupleDataLoader:
         if self._inWindowPulseTimes is None:
             inWindowPulseTimes_list = []
             raw_inWindowPulseTimes = []
+            self._sorting_indices_list = []  # Store per file
             for file_path in self.input_files:
                 with uproot.open(file_path) as file:
                     waveforms_tree = file["waveforms"]
                     inWindowPulseTimes = waveforms_tree["inWindowPulseTimes"].array(library="ak")
                     raw_inWindowPulseTimes.append(inWindowPulseTimes)
-                    # Sort and pad/truncate each subarray
-                    inWindowPulseTimes_sorted = ak.sort(inWindowPulseTimes)
+                    # Get sorting indices
+                    sorting_indices = ak.argsort(inWindowPulseTimes)
+                    # Sort times using the sorting indices
+                    inWindowPulseTimes_sorted = inWindowPulseTimes[sorting_indices]
                     lengths = ak.num(inWindowPulseTimes_sorted)
                     too_long = lengths > nentries
                     if ak.any(too_long):
                         num_too_long = ak.sum(too_long)
                         print(
                             f"Warning: {num_too_long} events have more pulse times than nentries ({nentries}). Cutting off extra times.")
-                    # Pad or truncate to nentries
+                    # Pad or truncate times and sorting indices to nentries
                     inWindowPulseTimes_padded = ak.pad_none(inWindowPulseTimes_sorted, nentries, clip=True)
-                    # Replace None with -999
+                    sorting_indices_padded = ak.pad_none(sorting_indices, nentries, clip=True)
+                    # Replace None with -999 in times, and with -1 in sorting indices
                     inWindowPulseTimes_filled = ak.fill_none(inWindowPulseTimes_padded, -999)
-                    # Convert to NumPy array
+                    sorting_indices_filled = ak.fill_none(sorting_indices_padded, -1)
+                    # Convert times to NumPy array
                     inWindowPulseTimes_np = ak.to_numpy(inWindowPulseTimes_filled).astype(np.float32)
                     inWindowPulseTimes_list.append(inWindowPulseTimes_np)
+                    # Store sorting indices as awkward array
+                    self._sorting_indices_list.append(sorting_indices_filled)
             # Concatenate all arrays
             self._inWindowPulseTimes = np.concatenate(inWindowPulseTimes_list, axis=0)
             # Also store raw inWindowPulseTimes for load_npe
             self._raw_inWindowPulseTimes = ak.concatenate(raw_inWindowPulseTimes)
         return self._inWindowPulseTimes
+
+    def load_charges(self, nentries=100):
+        """
+        Load, sort (using the same sorting as times), pad, and return inWindowPulseCharges data from all files.
+
+        Parameters:
+            nentries (int): Desired fixed length for each pulse charge array.
+
+        Returns:
+            np.ndarray of np.float32: 2D array with sorted and padded in-window pulse charges.
+        """
+        if self._inWindowPulseCharges is None:
+            if not hasattr(self, '_sorting_indices_list') or self._sorting_indices_list is None:
+                raise ValueError("Sorting indices are not available. Please run load_times first.")
+            inWindowPulseCharges_list = []
+            idx_file = 0
+            for file_path in self.input_files:
+                with uproot.open(file_path) as file:
+                    waveforms_tree = file["waveforms"]
+                    inWindowPulseCharges = waveforms_tree["inWindowPulseCharges"].array(library="ak")
+                    # Pad or truncate charges to nentries
+                    inWindowPulseCharges_padded = ak.pad_none(inWindowPulseCharges, nentries, clip=True)
+                    # Replace None with -999
+                    inWindowPulseCharges_filled = ak.fill_none(inWindowPulseCharges_padded, -999)
+                    # Get the corresponding sorting indices
+                    sorting_indices_filled = self._sorting_indices_list[idx_file]
+                    # Replace -1 with None in sorting indices
+                    sorting_indices_valid = ak.where(sorting_indices_filled == -1, None, sorting_indices_filled)
+                    # Apply sorting indices to charges
+                    inWindowPulseCharges_sorted = ak.take_along_axis(inWindowPulseCharges_filled, sorting_indices_valid,
+                                                                     axis=1)
+                    # Fill any None values resulting from indexing with -999
+                    inWindowPulseCharges_sorted_filled = ak.fill_none(inWindowPulseCharges_sorted, -999)
+                    # Convert to NumPy array
+                    inWindowPulseCharges_np = ak.to_numpy(inWindowPulseCharges_sorted_filled).astype(np.float32)
+                    inWindowPulseCharges_list.append(inWindowPulseCharges_np)
+                idx_file += 1
+            # Concatenate all arrays
+            self._inWindowPulseCharges = np.concatenate(inWindowPulseCharges_list, axis=0)
+        return self._inWindowPulseCharges
 
     def load_waveforms(self):
         """
@@ -516,3 +563,4 @@ class DataGenerator(Sequence):
         # Apply shifts
         augmented_batch_x = batch_x[np.arange(batch_size)[:, None], indices]
         return augmented_batch_x
+
