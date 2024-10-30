@@ -304,14 +304,16 @@ class NtupleDataLoader:
         pmt_types = self.pmtid_to_type[pmtids]
         return pmt_types.astype(np.float32)
 
-    def load_npe(self):
+    def load_npe(self, charge_threshold=0.2):
         """
-        Calculate and return the number of photons in each waveform.
+        Calculate and return the number of photons in each waveform,
+        subtracting the number of inWindowPulseCharges less than charge_threshold.
 
         Returns:
             np.ndarray of np.int32: Array containing the number of photons per waveform.
         """
         if self._nphotons is None:
+            # Ensure that inWindowPulseTimes and inWindowPulseCharges are loaded
             if hasattr(self, '_raw_inWindowPulseTimes'):
                 inWindowPulseTimes = self._raw_inWindowPulseTimes
             else:
@@ -323,8 +325,31 @@ class NtupleDataLoader:
                         inWindowPulseTimes = waveforms_tree["inWindowPulseTimes"].array(library="ak")
                         raw_inWindowPulseTimes.append(inWindowPulseTimes)
                 inWindowPulseTimes = ak.concatenate(raw_inWindowPulseTimes)
-            # Calculate the number of photons
-            nphotons = ak.num(inWindowPulseTimes)
+                self._raw_inWindowPulseTimes = inWindowPulseTimes  # Store for future use
+
+            if hasattr(self, '_raw_inWindowPulseCharges'):
+                inWindowPulseCharges = self._raw_inWindowPulseCharges
+            else:
+                # Load raw inWindowPulseCharges
+                raw_inWindowPulseCharges = []
+                for file_path in self.input_files:
+                    with uproot.open(file_path) as file:
+                        waveforms_tree = file["waveforms"]
+                        inWindowPulseCharges = waveforms_tree["inWindowPulseCharges"].array(library="ak")
+                        raw_inWindowPulseCharges.append(inWindowPulseCharges)
+                inWindowPulseCharges = ak.concatenate(raw_inWindowPulseCharges)
+                self._raw_inWindowPulseCharges = inWindowPulseCharges  # Store for future use
+
+            # Now, for each event, calculate nphotons
+            total_pulses = ak.num(inWindowPulseTimes)
+            charges = inWindowPulseCharges
+            # Count number of charges less than threshold per event
+            charges_below_threshold = charges < charge_threshold
+            num_charges_below_threshold = ak.sum(charges_below_threshold, axis=-1)
+            # Subtract number of charges below threshold from total_pulses
+            nphotons = total_pulses - num_charges_below_threshold
+            # Ensure nphotons is at least zero
+            nphotons = ak.where(nphotons < 0, 0, nphotons)
             self._nphotons = ak.to_numpy(nphotons).astype(np.int32)
         return self._nphotons
 
