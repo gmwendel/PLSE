@@ -61,6 +61,19 @@ def train_counter(
         waveforms, encoded_npes, pe_times = dataloader.load_good_data()
         pmt_types = np.zeros(len(waveforms), dtype=np.float32)  # Placeholder if pmt_types not available
 
+    # Assume zero npe is represented by a one-hot encoding where the first index is 1
+    valid_indices = np.nonzero(encoded_npes[:, 0] == 0)  # Get indices where zero-th index is NOT 1
+    waveforms = waveforms[valid_indices]
+    encoded_npes = encoded_npes[valid_indices]
+    pe_times = pe_times[valid_indices]
+    pmt_types = pmt_types[valid_indices]
+
+    # Filter waveforms so only pmt_types == 0 is used
+    mask = (pmt_types == 0).flatten()  # Ensure mask is 1D if pmt_type is multidimensional
+    waveforms = waveforms[mask]
+    encoded_npes = encoded_npes[mask]
+
+
     # Define true network output
     true_output = encoded_npes if mode == 'counter' else pe_times[:, 0:1] / 100.
 
