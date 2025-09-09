@@ -6,12 +6,15 @@ from setuptools import setup, find_packages
 
 # List of required packages
 install_requires = [
+    "awkward",
     "matplotlib>=3.0",
     "scipy",
     "numpy",
     "pandas",
     "seaborn",
-    "tensorflow>=2.16"  # Default to CPU version of TensorFlow
+    "uproot",
+    "tensorflow>=2.16",  # Default to CPU version of TensorFlow
+    "PyYAML"
 ]
 
 # Optional dependencies
@@ -27,8 +30,8 @@ setup(
     author_email="gmw5164@psu.edu",
     url="tbd",
     license="Apache 2.0",
-    version="0.0",
-    python_requires=">=3.9, <=3.12",
+    version="0.1.0",
+    python_requires=">=3.9, <=3.12.4",
     install_requires=install_requires,
     extras_require=extras_require,
     packages=find_packages(),

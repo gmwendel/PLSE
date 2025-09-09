@@ -4,7 +4,7 @@ import os
 import tensorflow as tf
 import keras
 import yaml
-from plse.data import DataLoader, DataGenerator
+from plse.data import DataLoader, DataGenerator, NtupleDataLoader
 from plse.models import PLSECounter
 
 
@@ -24,35 +24,57 @@ def train_counter(
         early_stopping_patience=5,
         learning_rate_patience=3,
         use_multiprocessing=False,
-    ):
-
+):
     assert not use_multiprocessing, "`use_multiprocessing` is not currently supported."
     assert learning_rate_patience < early_stopping_patience, "Learning rate patience should be smaller than earlier stopping patience."
 
     # Set up logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+    # Check file extensions and choose appropriate DataLoader
+    extensions = set()
+    for file in input_files:
+        _, ext = os.path.splitext(file)
+        extensions.add(ext.lower())
+
+    if len(extensions) > 1:
+        raise ValueError("All input files must have the same extension.")
+    elif len(extensions) == 0:
+        raise ValueError("No input files provided.")
+    else:
+        ext = extensions.pop()
+        if ext == '.root':
+            use_ntuple_loader = True
+        elif ext == '.npz':
+            use_ntuple_loader = False
+        else:
+            raise ValueError(f"Unsupported file extension: {ext}. Supported extensions are .root and .npz")
+
     # Load data
     logging.info("Loading data...")
-    dataloader = DataLoader(input_files)
-    waveforms, encoded_npes, pe_times = dataloader.load_good_data()
+    if use_ntuple_loader:
+        dataloader = NtupleDataLoader(input_files, npe_cut=10)
+        waveforms, encoded_npes, pe_times = dataloader.load_good_data()
+    else:
+        dataloader = DataLoader(input_files, npe_cut=10)
+        waveforms, encoded_npes, pe_times = dataloader.load_good_data()
 
     # Define true network output
     # Normalize pe times to be O(1)
-    true_output = encoded_npes if mode=='counter' else pe_times[:,0:1]/100.
+    true_output = encoded_npes if mode == 'counter' else pe_times[:, 0:1] / 100.
 
     # Take 1/10 total data and make it validation
     splits = int(len(waveforms) / 10)
-    augment_data = True if mode=='counter' else False
+    augment_data = True if mode == 'counter' else False
     train_dataset = DataGenerator(waveforms[:-splits], true_output[:-splits], augment_data=augment_data,
-                                  max_shift_left=20, max_shift_right=30+1)
+                                  max_shift_left=20, max_shift_right=30 + 1)
     validation_dataset = DataGenerator(waveforms[-splits:], true_output[-splits:],
-                                  max_shift_left=20, max_shift_right=30+1)
+                                       max_shift_left=20, max_shift_right=30 + 1)
 
     logging.info("Building and compiling the model...")
 
-    plse_counter = PLSECounter(waveforms.shape, true_output.shape, counter=True if mode=='counter' else False,
-                               output_length=None if mode=='counter' else 1) #TODO: currently only supports single PE timing
+    plse_counter = PLSECounter(waveforms.shape, true_output.shape, counter=True if mode == 'counter' else False,
+                               output_length=None if mode == 'counter' else 1)  # TODO: currently only supports single PE timing
     plse_counter.compile_model()
 
     # Verify the output directory and file before training
@@ -61,11 +83,11 @@ def train_counter(
 
     # Save the settings used for training to a yaml file in output_dir
     training_metadata = {
-        'max_epochs':max_epochs,
-        'early_stopping_patience':early_stopping_patience,
-        'learning_rate_patience':learning_rate_patience,
+        'max_epochs': max_epochs,
+        'early_stopping_patience': early_stopping_patience,
+        'learning_rate_patience': learning_rate_patience,
     }
-    training_metadata_filename = os.path.join(output_dir,'training_metadata.yml')
+    training_metadata_filename = os.path.join(output_dir, 'training_metadata.yml')
     with open(training_metadata_filename, 'w') as f:
         yaml.dump(training_metadata, f)
 
@@ -86,14 +108,14 @@ def train_counter(
         resources_dir = os.path.join(plse_counter.output_args['output_dir'], 'callbacks')
         # Checkpoint callback
         checkpoint_callback = keras.callbacks.ModelCheckpoint(
-            filepath = os.path.join(resources_dir, 'checkpoints_epoch-{epoch:02d}.keras'),
-            save_freq = 'epoch',
+            filepath=os.path.join(resources_dir, 'checkpoints_epoch-{epoch:02d}.keras'),
+            save_freq='epoch',
         )
         callbacks.append(checkpoint_callback)
         # TensorBoard log callback
         tensorboard_callback = keras.callbacks.TensorBoard(
-            log_dir = os.path.join(resources_dir, 'tensorboard_logs'),
-            histogram_freq = 1,
+            log_dir=os.path.join(resources_dir, 'tensorboard_logs'),
+            histogram_freq=1,
         )
         callbacks.append(tensorboard_callback)
 
@@ -110,6 +132,7 @@ def train_counter(
     if export_tf:
         plse_counter.export_tf()
 
+
 def main():
     parser = argparse.ArgumentParser(description='Train PLSECounter model.')
     parser.add_argument('input_files', nargs='+', help='Input files containing the waveforms, npe data, and times.')
@@ -120,28 +143,31 @@ def main():
     parser.add_argument('--save_history', action='store_true', help='Save training history and checkpoints.')
     parser.add_argument('--mode', default='counter', help='Whether to run in counter mode or timing mode.')
     parser.add_argument('--max-epochs', type=int, default=50, help='Maximum number of epochs allowed during training.')
-    parser.add_argument('--early-stopping-patience', type=int, default=5, help='Number of epochs with no improvement in val loss in order to stop training.')
-    parser.add_argument('--learning-rate-patience', type=int, default=3, help='Number of epochs with no improvement in val loss in order to reduce learning rate.')
+    parser.add_argument('--early-stopping-patience', type=int, default=5,
+                        help='Number of epochs with no improvement in val loss in order to stop training.')
+    parser.add_argument('--learning-rate-patience', type=int, default=3,
+                        help='Number of epochs with no improvement in val loss in order to reduce learning rate.')
     parser.add_argument('--use_multiprocessing', action='store_true', default=False,
                         help='Use multiprocessing for data loading.')
     args = parser.parse_args()
 
     train_counter(
         # Training files
-        input_files = args.input_files,
+        input_files=args.input_files,
         # Save settings
-        output_dir = args.output_dir,
-        overwrite = args.force_overwrite,
-        save_history = args.save_history,
-        export_tf = args.export_tf,
+        output_dir=args.output_dir,
+        overwrite=args.force_overwrite,
+        save_history=args.save_history,
+        export_tf=args.export_tf,
         # Model settings
-        mode = args.mode,
+        mode=args.mode,
         # Training settings
-        max_epochs = args.max_epochs,
-        early_stopping_patience = args.early_stopping_patience,
-        learning_rate_patience = args.learning_rate_patience,
-        use_multiprocessing = args.use_multiprocessing,
+        max_epochs=args.max_epochs,
+        early_stopping_patience=args.early_stopping_patience,
+        learning_rate_patience=args.learning_rate_patience,
+        use_multiprocessing=args.use_multiprocessing,
     )
+
 
 if __name__ == '__main__':
     main()
