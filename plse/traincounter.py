@@ -4,9 +4,8 @@ import os
 import tensorflow as tf
 import keras
 import yaml
-from plse.data import DataLoader, DataGenerator, NtupleDataLoader
+from plse.data import DataLoader, DataGenerator
 from plse.models import PLSECounter
-
 
 def train_counter(
         # Training files
@@ -31,33 +30,10 @@ def train_counter(
     # Set up logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    # Check file extensions and choose appropriate DataLoader
-    extensions = set()
-    for file in input_files:
-        _, ext = os.path.splitext(file)
-        extensions.add(ext.lower())
-
-    if len(extensions) > 1:
-        raise ValueError("All input files must have the same extension.")
-    elif len(extensions) == 0:
-        raise ValueError("No input files provided.")
-    else:
-        ext = extensions.pop()
-        if ext == '.root':
-            use_ntuple_loader = True
-        elif ext == '.npz':
-            use_ntuple_loader = False
-        else:
-            raise ValueError(f"Unsupported file extension: {ext}. Supported extensions are .root and .npz")
-
     # Load data
     logging.info("Loading data...")
-    if use_ntuple_loader:
-        dataloader = NtupleDataLoader(input_files, npe_cut=10)
-        waveforms, encoded_npes, pe_times = dataloader.load_good_data()
-    else:
-        dataloader = DataLoader(input_files, npe_cut=10)
-        waveforms, encoded_npes, pe_times = dataloader.load_good_data()
+    dataloader = DataLoader(input_files, npe_cut=10)
+    waveforms, encoded_npes, pe_times = dataloader.load_good_data()
 
     # Define true network output
     # Normalize pe times to be O(1)

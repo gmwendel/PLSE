@@ -21,9 +21,8 @@ def evaluate_from_saved_model(
 
     # Load data
     logging.info("Loading data...")
-    dataloader = DataLoader(input_files)
-    waveforms = dataloader.load_waveforms()
-    encoded_npes = dataloader.load_encoded_npe()
+    dataloader = DataLoader(input_files, npe_cut=10)
+    waveforms, encoded_npes, pe_times = dataloader.load_good_data()
 
     # Load network
     logging.info("Loading network "+input_model)
@@ -34,8 +33,8 @@ def evaluate_from_saved_model(
     output_dir, filename = os.path.split(output_file)
     _, output_file = verify_output(output_dir=output_dir, filename=filename, overwrite=overwrite)
 
-    # Evaluate
-    output = loaded_model(waveforms).numpy()
+    # Make predictions
+    output = loaded_model.predict(waveforms,batch_size=2048)
 
     # Save output
     with open(output_file,'wb') as f:
