@@ -7,10 +7,42 @@ import warnings
 from keras.utils import Sequence
 
 
-class DataLoader:
+def DataLoader(input_files, npe_cut=10):
+    '''
+    General data loader that will choose between Npz or Ntuple depending on the input file extension.
+    '''
+
+    # Check file extensions and choose appropriate DataLoader
+    extensions = set()
+    for file in input_files:
+        _, ext = os.path.splitext(file)
+        extensions.add(ext.lower())
+
+    if len(extensions) > 1:
+        raise ValueError("All input files must have the same extension.")
+    elif len(extensions) == 0:
+        raise ValueError("No input files provided.")
+    else:
+        ext = extensions.pop()
+        if ext == '.root':
+            use_ntuple_loader = True
+        elif ext == '.npz':
+            use_ntuple_loader = False
+        else:
+            raise ValueError(f"Unsupported file extension: {ext}. Supported extensions are .root and .npz")
+
+    # Load data
+    if use_ntuple_loader:
+        dataloader = NtupleDataLoader(input_files, npe_cut=10)
+    else:
+        dataloader = NpzDataLoader(input_files, npe_cut=10)
+    return dataloader
+
+
+class NpzDataLoader:
     def __init__(self, input_files, npe_cut=10):
         """
-        DataLoader constructor.
+        NpzDataLoader constructor.
 
         Parameters:
             input_files (list of str): Input files to be read containing the waveforms and npe data.
@@ -473,8 +505,8 @@ class NtupleDataLoader:
             print('\n\n ---> WARNING!! Bad PE times present in the files!!! %d events will be removed.\n\n' % np.sum(
                 ~good_event_mask))
 
-        return waveforms[good_event_mask], encoded_npes[good_event_mask], pe_times[good_event_mask], pmt_types[
-            good_event_mask]
+        return waveforms[good_event_mask], encoded_npes[good_event_mask], pe_times[good_event_mask]
+        
     @staticmethod
     def one_hot_encode_with_overflow(n, n_max):
         """
