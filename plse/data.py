@@ -529,7 +529,7 @@ class NtupleDataLoader:
 
 
 class DataGenerator(Sequence):
-    def __init__(self, x, y, batch_size=2**13, shuffle=True, augment_data=True, max_shift_left=10, max_shift_right=10):
+    def __init__(self, x, y, batch_size=2**13, shuffle=True, augment_data=True, max_shift_left=10, max_shift_right=10, weights=None,):
         """
         DataGenerator constructor.
 
@@ -544,6 +544,7 @@ class DataGenerator(Sequence):
         """
         self.x = x
         self.y = y
+        self.w = weights
         assert max_shift_right>=0, "Maximum shift to the right should not be negative"
         self.max_shift_left = -1*abs(max_shift_left)
         self.max_shift_right = abs(max_shift_right)
@@ -560,12 +561,17 @@ class DataGenerator(Sequence):
         indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
         batch_x = self.x[indexes]
         batch_y = self.y[indexes]
+        if self.w is not None:
+            batch_w = self.w[indexes]
 
         # Apply data augmentation
         if self.augment_data:
             batch_x = self._augment_data(batch_x)
 
-        return batch_x, batch_y
+        if self.w is not None:
+            return batch_x, batch_y, batch_w
+        else:
+            return batch_x, batch_y
 
     def on_epoch_end(self):
         if self.shuffle:
