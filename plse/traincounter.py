@@ -3,6 +3,7 @@ import logging
 import os
 import tensorflow as tf
 import keras
+import numpy as np
 import yaml
 from plse.data import DataLoader, DataGenerator
 from plse.models import PLSECounter
@@ -39,12 +40,16 @@ def train_counter(
     # Normalize pe times to be O(1)
     true_output = encoded_npes if mode == 'counter' else pe_times[:, 0:1] / 100.
 
+    # Get nhits
+    nhits = np.argmax(encoded_npes,axis=1)
+
     # Take 1/10 total data and make it validation
     splits = int(len(waveforms) / 10)
     augment_data = True if mode == 'counter' else False
-    train_dataset = DataGenerator(waveforms[:-splits], true_output[:-splits], augment_data=augment_data,
+    weights = nhits if mode == 'counter' else None
+    train_dataset = DataGenerator(waveforms[:-splits], true_output[:-splits], augment_data=augment_data, weights=weights,
                                   max_shift_left=20, max_shift_right=30 + 1)
-    validation_dataset = DataGenerator(waveforms[-splits:], true_output[-splits:],
+    validation_dataset = DataGenerator(waveforms[-splits:], true_output[-splits:], weights=weights,
                                        max_shift_left=20, max_shift_right=30 + 1)
 
     logging.info("Building and compiling the model...")
